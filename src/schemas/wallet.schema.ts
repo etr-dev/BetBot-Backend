@@ -5,11 +5,8 @@ import { User } from './user.schema';
 
 export type WalletDocument = Wallet & Document;
 
-@Schema()
+@Schema({ collection: 'wallets' })
 export class Wallet {
-    @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
-    userId: User;
-
     @Prop()
     amount: number;
 

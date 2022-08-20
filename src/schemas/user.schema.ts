@@ -1,13 +1,15 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document } from 'mongoose';
-import { UserBets } from './Nested/userBets.schema';
+import { Transform } from 'class-transformer';
+import mongoose, { Document, SchemaType } from 'mongoose';
+import { Bet } from './bet.schema';
+import { UserBets, UserBetsSchema } from './Nested/userBets.schema';
 import { Wallet } from './wallet.schema';
 
 export type UserDocument = User & Document;
 
-@Schema()
+@Schema({ collection: 'users' })
 export class User {
-    @Prop()
+    @Prop({ required: true, index: true, unique: true })
     userId: string;
 
     @Prop([String])
@@ -19,7 +21,7 @@ export class User {
     @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Wallet' })
     walletId: Wallet;
 
-    @Prop({ type: UserBets })
+    @Prop({ type: UserBetsSchema })
     userBets: UserBets;
 }
 

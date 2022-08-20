@@ -5,7 +5,7 @@ import { UserBets } from './Nested/userBets.schema';
 
 export type MatchDocument = Match & Document;
 
-@Schema()
+@Schema({ collection: 'matches' })
 export class Match {
     @Prop()
     eventTitle: string;

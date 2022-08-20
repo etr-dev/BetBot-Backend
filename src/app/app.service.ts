@@ -4,7 +4,7 @@ import { Connection } from 'mongoose';
 
 @Injectable()
 export class AppService {
-  constructor(@InjectConnection() private connection: Connection) {
+  constructor(@InjectConnection('BetBot') private connection: Connection) {
   }
 
   health(): string {

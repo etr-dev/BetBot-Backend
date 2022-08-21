@@ -2,11 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { BetDocument, MatchDocument, UserDocument, WalletDocument } from '@schemas';
 import mongoose, { Connection, Model } from 'mongoose';
+import { BetNotActiveException } from 'src/exceptions/betNotActive.exception';
 import { MatchAlreadyExistsException } from 'src/exceptions/matchAlreadyExists.exception';
 import { MatchNotFoundException } from 'src/exceptions/matchNotFound.exception';
 import { UserAlreadyExistsException } from 'src/exceptions/userAlreadyExists.exception';
 import { CreateMatchDto } from './dto/createMatch.dto';
 import { CreateUserDto } from './dto/createUser.dto';
+import { MatchCompleteDto } from './dto/matchComplete.dto';
 import { PlaceBetDto } from './dto/placeBet.dto';
 
 @Injectable()
@@ -92,15 +94,95 @@ export class BetbotService {
       }
     
     
-    const createdBet = new this.betModel({ creationDate: Date.now(), ...placeBetDto });
-    await createdBet.save();
+    const bet = new this.betModel({ creationDate: Date.now(), ...placeBetDto });
+    await bet.save();
 
-    const updatedUser = await this.userModel.findOne({ userId: placeBetDto.userId });
-    updatedUser.userBets.activeBets.push(createdBet._id);
-    return updatedUser.save();
+    const user = await this.userModel.findOne({ userId: placeBetDto.userId });
+    user.userBets.activeBets.push(bet._id);
+    await user.save();
 
-    // return { message: 'CREATED', betId: createdBet._id }
+    const wallet = await this.walletModel.findById(placeBetDto.walletId);
+    wallet.amount -= placeBetDto.wagerAmount;
+    wallet.escrow += placeBetDto.wagerAmount;
+    await wallet.save();
+
+    return { message: 'CREATED', betId: bet._id }
   }
+
+  //-----------------------------------------------------
+  //                MATCH COMPLETE
+  //-----------------------------------------------------
+  async matchComplete(matchCompleteDto: MatchCompleteDto) {
+    const postMatchInfo = {
+      result: matchCompleteDto.result,
+      method: matchCompleteDto.method,
+      time: matchCompleteDto.time,
+      round: matchCompleteDto.round,
+      Red: {
+        name: matchCompleteDto.Red.Name,
+        odds: matchCompleteDto.Red.Odds,
+        outcome: matchCompleteDto.Red.Outcome,
+      },
+      Blue: {
+        name: matchCompleteDto.Blue.Name,
+        odds: matchCompleteDto.Blue.Odds,
+        outcome: matchCompleteDto.Blue.Outcome,
+      }
+    }
+
+    const match = await this.matchModel.findOneAndUpdate(
+      { eventTitle: matchCompleteDto.eventTitle, matchTitle: matchCompleteDto.matchTitle },
+      { $set: { postMatchInfo: postMatchInfo } },
+    );
+
+    if (!match) {
+      throw new MatchNotFoundException(matchCompleteDto.matchTitle);
+    }
+  
+    const betsOnMatch = await this.betModel.find({ matchId: match._id });
+
+    for (let bet of betsOnMatch) {
+      const wallet = await this.walletModel.findById(bet.walletId);
+      const user = await this.userModel.findOne({ userId: bet.userId });
+
+      const index = user.userBets.activeBets.indexOf(bet._id);
+      if (index == -1) {  // If the bet is not found in activebets
+        console.log(`Bet is not active, skipping: ${bet._id}`);
+        continue;
+      }
+
+      switch (match.postMatchInfo.result) {
+        case bet.selectedCorner:
+          bet.outcome = 'WIN';
+          wallet.amount += bet.amountToPayout;  // Payout money
+          wallet.escrow -= bet.wagerAmount;
+          break;
+        case 'NO_CONTEST':
+          bet.outcome = 'NO_CONTEST';
+          wallet.amount += bet.wagerAmount; // Give money back
+          wallet.escrow -= bet.wagerAmount;
+          break;
+        case 'DRAW':
+          bet.outcome = 'DRAW';
+          wallet.escrow -= bet.wagerAmount; // take money out of escrow
+          break;
+        default:
+          bet.outcome = 'LOSS';
+          wallet.escrow -= bet.wagerAmount; // take money out of escrow
+          break;
+      }
+      bet.completionDate = Date.now();
+      
+      user.userBets.activeBets.splice(index, 1);
+      user.userBets.inactiveBets.push(bet._id);
+      
+      bet.save();
+      user.save();
+      wallet.save();
+    }
+
+    return { message: 'COMPLETE', betId: betsOnMatch.map(bet => bet._id)}
+}
 }
 
 

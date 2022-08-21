@@ -1,10 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { BetbotService } from './betbot.service';
 import { CreateMatchDto } from './dto/createMatch.dto';
 import { CreateUserDto } from './dto/createUser.dto';
+import { MatchCompleteDto } from './dto/matchComplete.dto';
 import { PlaceBetDto } from './dto/placeBet.dto';
 
+
 @Controller('betbot')
+@UseGuards(AuthGuard('api-key'))
 export class BetbotController {
   constructor(private readonly betbotService: BetbotService) {}
 
@@ -26,6 +30,11 @@ export class BetbotController {
   @Post('placeBet')
   async placeBet(@Body() placeBetDto: PlaceBetDto) {
     return this.betbotService.placeBet(placeBetDto);
+  }
+
+  @Post('matchComplete')
+  async matchComplete(@Body() matchCompleteDto: MatchCompleteDto) {
+    return this.betbotService.matchComplete(matchCompleteDto);
   }
   
   @Get('findAllUsers')

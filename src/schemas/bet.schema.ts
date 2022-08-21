@@ -25,6 +25,9 @@ export class Bet {
     completionDate: number;
 
     @Prop()
+    outcome: string;
+
+    @Prop()
     selectedCorner: string;
 
     @Prop()

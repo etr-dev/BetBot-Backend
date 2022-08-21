@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import { PostMatchInfo } from './Nested/postMatchInfo.schema';
+import { PostMatchInfo, PostMatchInfoSchema } from './Nested/postMatchInfo.schema';
 import { UserBets } from './Nested/userBets.schema';
 
 export type MatchDocument = Match & Document;
@@ -16,7 +16,7 @@ export class Match {
     @Prop()
     link: string;
 
-    @Prop()
+    @Prop({type: PostMatchInfoSchema})
     postMatchInfo: PostMatchInfo;
 }
 

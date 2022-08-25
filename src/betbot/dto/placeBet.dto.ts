@@ -1,7 +1,6 @@
 import { IsInt, IsNumber, IsNumberString, IsString } from "class-validator";
 
 export class PlaceBetDto {
-
     @IsString()
     matchId: string;
     

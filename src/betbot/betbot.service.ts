@@ -1,15 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { BetDocument, MatchDocument, UserDocument, WalletDocument } from '@schemas';
+import {
+  BetDocument,
+  Match,
+  MatchDocument,
+  UserDocument,
+  WalletDocument,
+} from '@schemas';
 import mongoose, { Connection, Model } from 'mongoose';
 import { BetNotActiveException } from 'src/exceptions/betNotActive.exception';
 import { MatchAlreadyExistsException } from 'src/exceptions/matchAlreadyExists.exception';
 import { MatchNotFoundException } from 'src/exceptions/matchNotFound.exception';
+import { NotEnoughInWalletException } from 'src/exceptions/notEnoughInWallet.exception';
 import { UserAlreadyExistsException } from 'src/exceptions/userAlreadyExists.exception';
+import { logServer } from 'src/utils/log';
 import { CreateMatchDto } from './dto/createMatch.dto';
 import { CreateUserDto } from './dto/createUser.dto';
+import { GetUsersBetsDto } from './dto/getUsersBets.dto';
+import { GetWalletDto } from './dto/getWallet.dto';
 import { MatchCompleteDto } from './dto/matchComplete.dto';
 import { PlaceBetDto } from './dto/placeBet.dto';
+import { BetSelection } from './entities/enums/betSelection.enum';
 
 @Injectable()
 export class BetbotService {
@@ -19,8 +30,8 @@ export class BetbotService {
     @InjectModel('Wallet', 'BetBot') private walletModel: Model<WalletDocument>,
     @InjectModel('Match', 'BetBot') private matchModel: Model<MatchDocument>,
     @InjectModel('Bet', 'BetBot') private betModel: Model<BetDocument>,
-  ) { }
-  
+  ) {}
+
   //-----------------------------------------------------
   //                DROP USERS
   //-----------------------------------------------------
@@ -32,32 +43,32 @@ export class BetbotService {
   //                CREATE USER
   //-----------------------------------------------------
   async createUser(createUserDto: CreateUserDto) {
-    const preExistingUser = await this.userModel.findOne({ userId: createUserDto.userId });
+    const preExistingUser = await this.userModel.findOne({
+      userId: createUserDto.userId,
+    });
     if (preExistingUser) {
-      return { message: 'FOUND', walletId: preExistingUser.walletId }
+      return { message: 'FOUND', walletId: preExistingUser.walletId };
     }
-    
+
     const createWallet = new this.walletModel({
       amount: 500,
       escrow: 0,
-    })
+    });
     const walletId = (await createWallet.save())._id;
 
-    const createdUser = new this.userModel(
-    {
+    const createdUser = new this.userModel({
       userId: createUserDto.userId,
       discordGuildList: [],
       name: createUserDto.name,
       walletId,
       userBets: {
         inactiveBets: [],
-        activeBets: []
-      }  
-    }
-    );
+        activeBets: [],
+      },
+    });
     createdUser.discordGuildIdList.push(createUserDto.discordGuildId);
     createdUser.save();
-    return { message: 'CREATED', walletId: createdUser.walletId }
+    return { message: 'CREATED', walletId: createdUser.walletId };
   }
 
   //-----------------------------------------------------
@@ -68,18 +79,30 @@ export class BetbotService {
   }
 
   //-----------------------------------------------------
+  //                GET ALL USERS
+  //-----------------------------------------------------
+  wallet(getWalletDto: GetWalletDto) {
+    return this.walletModel.findById(getWalletDto.walletId);
+  }
+
+  //-----------------------------------------------------
   //                CREATE MATCH
   //-----------------------------------------------------
   async createMatch(createMatchDto: CreateMatchDto) {
-    const preExistingMatch = await this.matchModel.findOne({ eventTitle: createMatchDto.eventTitle, matchTitle: createMatchDto.matchTitle });
+    const preExistingMatch = await this.matchModel.findOne({
+      eventTitle: createMatchDto.eventTitle,
+      matchTitle: createMatchDto.matchTitle,
+    });
 
     if (preExistingMatch) {
-      return { message: 'FOUND', matchId: preExistingMatch._id }
-    }
-    else {
-      const createdMatch = new this.matchModel( { ...createMatchDto } );
+      logServer(preExistingMatch._id);
+      return { message: 'FOUND', matchId: preExistingMatch._id };
+    } else {
+      const createdMatch = new this.matchModel({ ...createMatchDto });
       createdMatch.save();
-      return { message: 'CREATED', matchId: createdMatch._id }
+
+      logServer(createdMatch._id);
+      return { message: 'CREATED', matchId: createdMatch._id };
     }
   }
 
@@ -87,26 +110,33 @@ export class BetbotService {
   //                PLACE BET
   //-----------------------------------------------------
   async placeBet(placeBetDto: PlaceBetDto) {
-      const preExistingMatch = await this.matchModel.findOne({ _id: placeBetDto.matchId });
+    const preExistingMatch = await this.matchModel.findOne({
+      _id: placeBetDto.matchId,
+    });
 
-      if (!preExistingMatch) {
-        throw new MatchNotFoundException(placeBetDto.matchId);
-      }
-    
-    
+    if (!preExistingMatch) {
+      throw new MatchNotFoundException(placeBetDto.matchId);
+    }
+
     const bet = new this.betModel({ creationDate: Date.now(), ...placeBetDto });
-    await bet.save();
 
     const user = await this.userModel.findOne({ userId: placeBetDto.userId });
     user.userBets.activeBets.push(bet._id);
-    await user.save();
 
     const wallet = await this.walletModel.findById(placeBetDto.walletId);
+    if (placeBetDto.wagerAmount > wallet.amount) {
+      throw new NotEnoughInWalletException(
+        placeBetDto.wagerAmount,
+        wallet.amount,
+      );
+    }
     wallet.amount -= placeBetDto.wagerAmount;
     wallet.escrow += placeBetDto.wagerAmount;
     await wallet.save();
+    await bet.save();
+    await user.save();
 
-    return { message: 'CREATED', betId: bet._id }
+    return { message: 'CREATED', betId: bet._id };
   }
 
   //-----------------------------------------------------
@@ -127,18 +157,21 @@ export class BetbotService {
         name: matchCompleteDto.Blue.Name,
         odds: matchCompleteDto.Blue.Odds,
         outcome: matchCompleteDto.Blue.Outcome,
-      }
-    }
+      },
+    };
 
     const match = await this.matchModel.findOneAndUpdate(
-      { eventTitle: matchCompleteDto.eventTitle, matchTitle: matchCompleteDto.matchTitle },
+      {
+        eventTitle: matchCompleteDto.eventTitle,
+        matchTitle: matchCompleteDto.matchTitle,
+      },
       { $set: { postMatchInfo: postMatchInfo } },
     );
 
     if (!match) {
       throw new MatchNotFoundException(matchCompleteDto.matchTitle);
     }
-  
+
     const betsOnMatch = await this.betModel.find({ matchId: match._id });
 
     for (let bet of betsOnMatch) {
@@ -146,7 +179,8 @@ export class BetbotService {
       const user = await this.userModel.findOne({ userId: bet.userId });
 
       const index = user.userBets.activeBets.indexOf(bet._id);
-      if (index == -1) {  // If the bet is not found in activebets
+      if (index == -1) {
+        // If the bet is not found in activebets
         console.log(`Bet is not active, skipping: ${bet._id}`);
         continue;
       }
@@ -154,7 +188,7 @@ export class BetbotService {
       switch (match.postMatchInfo.result) {
         case bet.selectedCorner:
           bet.outcome = 'WIN';
-          wallet.amount += bet.amountToPayout;  // Payout money
+          wallet.amount += bet.amountToPayout; // Payout money
           wallet.escrow -= bet.wagerAmount;
           break;
         case 'NO_CONTEST':
@@ -166,31 +200,79 @@ export class BetbotService {
           bet.outcome = 'DRAW';
           wallet.escrow -= bet.wagerAmount; // take money out of escrow
           break;
-        default:
+        default: // take money out of escrow
           bet.outcome = 'LOSS';
-          wallet.escrow -= bet.wagerAmount; // take money out of escrow
+          wallet.escrow -= bet.wagerAmount;
           break;
       }
       bet.completionDate = Date.now();
-      
+
       user.userBets.activeBets.splice(index, 1);
       user.userBets.inactiveBets.push(bet._id);
-      
+
       bet.save();
       user.save();
       wallet.save();
     }
 
-    return { message: 'COMPLETE', betId: betsOnMatch.map(bet => bet._id)}
+    return { message: 'COMPLETE', betId: betsOnMatch.map((bet) => bet._id) };
+  }
+
+  async getUsersBets(getUsersBetsDto: GetUsersBetsDto) {
+    const { userId, betSelection, attachMatchInfo } = getUsersBetsDto;
+
+    const user = await this.userModel.findOne({ userId });
+    let betIdList = [];
+
+    switch (betSelection) {
+      case BetSelection.ACTIVE:
+        betIdList = user.userBets.activeBets;
+        break;
+      case BetSelection.INACTIVE:
+        betIdList = user.userBets.inactiveBets;
+        break;
+      case BetSelection.ALL:
+        betIdList = user.userBets.activeBets;
+        betIdList = betIdList.concat(user.userBets.inactiveBets);
+    }
+
+    const bets = await this.betModel.find({
+      _id: { $in: betIdList },
+    });
+
+    //   var data = bets.map(function (bet) {
+    //     return [bet, bet.matchId]
+    // });
+
+    let matchMapById = {};
+
+    for (let bet of bets) {
+      const matchId: string = bet.matchId.toString();
+      if (!(matchId in matchMapById)) {
+        matchMapById[matchId] = await this.matchModel.findById(matchId);
+      }
+    }
+
+    // Sort most recent at index 0 by creation date
+    bets.sort((a, b) => b.creationDate - a.creationDate);
+    let data;
+    if (attachMatchInfo) {
+      data = bets.map(function (bet) {
+        const obj = {
+          bet: bet,
+          match: matchMapById[bet.matchId.toString()],
+        }
+        return obj;
+      });
+    } else {
+      data = bets;
+    }
+
+    return { message: 'COMPLETE', data: data };
+  }
 }
-}
 
-
-
-
-
-
-      /*
+/*
       const existingUser = await this.userModel.findOne({ userId: createUserDto.userId });
       if (existingUser.discordGuildIdList.includes(createUserDto.discordGuildId)) {
         return 'User already exists.';

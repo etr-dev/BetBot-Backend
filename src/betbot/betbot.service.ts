@@ -14,13 +14,14 @@ import { MatchNotFoundException } from 'src/exceptions/matchNotFound.exception';
 import { NotEnoughInWalletException } from 'src/exceptions/notEnoughInWallet.exception';
 import { UserAlreadyExistsException } from 'src/exceptions/userAlreadyExists.exception';
 import { logServer } from 'src/utils/log';
-import { CreateMatchDto } from './dto/createMatch.dto';
-import { CreateUserDto } from './dto/createUser.dto';
-import { GetUsersBetsDto } from './dto/getUsersBets.dto';
-import { GetWalletDto } from './dto/getWallet.dto';
-import { MatchCompleteDto } from './dto/matchComplete.dto';
-import { PlaceBetDto } from './dto/placeBet.dto';
+import { CreateUserDto } from './dto/user/createUser.dto';
+import { GetUsersBetsDto } from './dto/user/getUsersBets.dto';
+import { GetWalletDto } from './dto/wallet/getWallet.dto';
+import { CreateMatchDto } from './dto/match/createMatch.dto';
+import { GetMatchDto } from './dto/match/getMatch.dto';
+import { PlaceBetDto } from './dto/bet/placeBet.dto';
 import { BetSelection } from './entities/enums/betSelection.enum';
+import { CompleteMatchDto } from './dto/match/completeMatch.dto';
 
 @Injectable()
 export class BetbotService {
@@ -142,34 +143,18 @@ export class BetbotService {
   //-----------------------------------------------------
   //                MATCH COMPLETE
   //-----------------------------------------------------
-  async matchComplete(matchCompleteDto: MatchCompleteDto) {
-    const postMatchInfo = {
-      result: matchCompleteDto.result,
-      method: matchCompleteDto.method,
-      time: matchCompleteDto.time,
-      round: matchCompleteDto.round,
-      Red: {
-        name: matchCompleteDto.Red.Name,
-        odds: matchCompleteDto.Red.Odds,
-        outcome: matchCompleteDto.Red.Outcome,
-      },
-      Blue: {
-        name: matchCompleteDto.Blue.Name,
-        odds: matchCompleteDto.Blue.Odds,
-        outcome: matchCompleteDto.Blue.Outcome,
-      },
-    };
+  async matchComplete(completeMatchDto: CompleteMatchDto) {
 
     const match = await this.matchModel.findOneAndUpdate(
       {
-        eventTitle: matchCompleteDto.eventTitle,
-        matchTitle: matchCompleteDto.matchTitle,
+        eventTitle: completeMatchDto.eventTitle,
+        matchTitle: completeMatchDto.matchTitle,
       },
-      { $set: { postMatchInfo: postMatchInfo } },
+      { $set: { postMatchInfo: completeMatchDto.postMatchInfo } },
     );
 
     if (!match) {
-      throw new MatchNotFoundException(matchCompleteDto.matchTitle);
+      throw new MatchNotFoundException(completeMatchDto.matchTitle);
     }
 
     const betsOnMatch = await this.betModel.find({ matchId: match._id });
@@ -261,7 +246,7 @@ export class BetbotService {
         const obj = {
           bet: bet,
           match: matchMapById[bet.matchId.toString()],
-        }
+        };
         return obj;
       });
     } else {
@@ -269,6 +254,26 @@ export class BetbotService {
     }
 
     return { message: 'COMPLETE', data: data };
+  }
+
+  async getAllIncompleteMatchLinks() {
+    const matches = await this.matchModel.find({
+      isComplete: false,
+    });
+
+    const matchLinks = matches.map((match) => {
+      const link = match.link;
+      return link;
+      // return link.substring(0, link.indexOf('#'));
+    });
+
+    return { message: 'COMPLETE', data: [...new Set(matchLinks)] };
+  }
+
+  async getMatch(query: GetMatchDto) {
+    const matches = await this.matchModel.find(query);
+
+    return { message: 'COMPLETE', data: matches };
   }
 }
 

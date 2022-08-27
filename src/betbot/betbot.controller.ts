@@ -2,12 +2,13 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@n
 import { AuthGuard } from '@nestjs/passport';
 import { logServer } from 'src/utils/log';
 import { BetbotService } from './betbot.service';
-import { CreateMatchDto } from './dto/createMatch.dto';
-import { CreateUserDto } from './dto/createUser.dto';
-import { GetUsersBetsDto } from './dto/getUsersBets.dto';
-import { GetWalletDto } from './dto/getWallet.dto';
-import { MatchCompleteDto } from './dto/matchComplete.dto';
-import { PlaceBetDto } from './dto/placeBet.dto';
+import { CreateUserDto } from './dto/user/createUser.dto';
+import { GetUsersBetsDto } from './dto/user/getUsersBets.dto';
+import { GetWalletDto } from './dto/wallet/getWallet.dto';
+import { CreateMatchDto } from './dto/match/createMatch.dto';
+import { GetMatchDto } from './dto/match/getMatch.dto';
+import { CompleteMatchDto } from './dto/match/completeMatch.dto';
+import { PlaceBetDto } from './dto/bet/placeBet.dto';
 
 
 @Controller('betbot')
@@ -37,9 +38,9 @@ export class BetbotController {
   }
 
   @Post('matchComplete')
-  async matchComplete(@Body() matchCompleteDto: MatchCompleteDto) {
-    logServer(`Completing match ${matchCompleteDto.matchTitle}`);
-    return this.betbotService.matchComplete(matchCompleteDto);
+  async matchComplete(@Body() completeMatchDto: CompleteMatchDto) {
+    logServer(`Completing match ${completeMatchDto.matchTitle}`);
+    return this.betbotService.matchComplete(completeMatchDto);
   }
   
   @Get('wallet')
@@ -50,6 +51,16 @@ export class BetbotController {
   @Get('getUsersBets')
   async getActiveBets(@Body() getUsersBetsDto: GetUsersBetsDto) {
     return this.betbotService.getUsersBets(getUsersBetsDto);
+  }
+
+  @Get('getMatch')
+  async getMatch(@Body() getMatchDto: GetMatchDto) {
+    return this.betbotService.getMatch(getMatchDto);
+  }
+
+  @Get('getAllIncompleteMatchLinks')
+  async getAllIncompleteMatchLinks() {
+    return this.betbotService.getAllIncompleteMatchLinks();
   }
 
   @Get('findAllUsers')

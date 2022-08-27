@@ -1,14 +1,23 @@
-import { IsInt, IsNumber, IsNumberString, IsString } from "class-validator";
+import { IsInt, IsNumber, IsString } from "class-validator";
 
-export class PlaceBetDto {
+export class BetDto {
     @IsString()
     matchId: string;
-    
-    @IsNumberString()
+
+    @IsString()
     userId: string;
 
     @IsString()
     walletId: string;
+
+    @IsInt()
+    creationDate: number;
+
+    @IsInt()
+    completionDate: number;
+
+    @IsString()
+    outcome: string = undefined;
     
     @IsString()
     selectedCorner: string;

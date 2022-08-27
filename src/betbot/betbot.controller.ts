@@ -37,10 +37,10 @@ export class BetbotController {
     return this.betbotService.placeBet(placeBetDto);
   }
 
-  @Post('matchComplete')
+  @Post('completeMatch')
   async matchComplete(@Body() completeMatchDto: CompleteMatchDto) {
     logServer(`Completing match ${completeMatchDto.matchTitle}`);
-    return this.betbotService.matchComplete(completeMatchDto);
+    return this.betbotService.completeMatch(completeMatchDto);
   }
   
   @Get('wallet')

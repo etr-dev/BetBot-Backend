@@ -32,6 +32,6 @@ export class MatchDto {
   Blue: CornerDetailsDto;
 
   @ValidateNested()
-  @Type(() => CornerDetailsDto)
+  @Type(() => PostMatchInfoDto)
   postMatchInfo: PostMatchInfoDto;
 }

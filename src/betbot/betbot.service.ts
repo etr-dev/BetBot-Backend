@@ -143,15 +143,11 @@ export class BetbotService {
   //-----------------------------------------------------
   //                MATCH COMPLETE
   //-----------------------------------------------------
-  async matchComplete(completeMatchDto: CompleteMatchDto) {
-
-    const match = await this.matchModel.findOneAndUpdate(
-      {
-        eventTitle: completeMatchDto.eventTitle,
-        matchTitle: completeMatchDto.matchTitle,
-      },
-      { $set: { postMatchInfo: completeMatchDto.postMatchInfo } },
-    );
+  async completeMatch(completeMatchDto: CompleteMatchDto) {
+    const match = await this.matchModel.findOne({
+      eventTitle: completeMatchDto.eventTitle,
+      matchTitle: completeMatchDto.matchTitle,
+    });
 
     if (!match) {
       throw new MatchNotFoundException(completeMatchDto.matchTitle);
@@ -170,7 +166,7 @@ export class BetbotService {
         continue;
       }
 
-      switch (match.postMatchInfo.result) {
+      switch (completeMatchDto.postMatchInfo.result) {
         case bet.selectedCorner:
           bet.outcome = 'WIN';
           wallet.amount += bet.amountToPayout; // Payout money
@@ -194,12 +190,29 @@ export class BetbotService {
 
       user.userBets.activeBets.splice(index, 1);
       user.userBets.inactiveBets.push(bet._id);
-
+      // await this.matchModel.findOneAndUpdate(
+      //   {
+      //     eventTitle: completeMatchDto.eventTitle,
+      //     matchTitle: completeMatchDto.matchTitle,
+      //   },
+      //   {
+      //     $set: {
+      //       postMatchInfo: completeMatchDto.postMatchInfo,
+      //       isComplete: true,
+      //     },
+      //   },
+      // );
       bet.save();
       user.save();
       wallet.save();
     }
 
+    await match.update({
+      $set: {
+        postMatchInfo: completeMatchDto.postMatchInfo,
+        isComplete: true,
+      },
+    });
     return { message: 'COMPLETE', betId: betsOnMatch.map((bet) => bet._id) };
   }
 

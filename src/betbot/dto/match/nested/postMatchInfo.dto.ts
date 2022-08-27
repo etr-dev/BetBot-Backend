@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsNumber,
   IsOptional,
@@ -6,30 +7,27 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { CornerDetailsDto } from './cornerDetails.dto';
+import { CornerInfoDto } from './cornerInfo.dto';
 
 export class PostMatchInfoDto {
   @IsString()
-  @IsOptional()
   result: string;
 
   @IsString()
-  @IsOptional()
   method: string;
 
   @IsString()
-  @IsOptional()
   time: string;
 
   @IsNumber()
   @Max(5)
-  @IsOptional()
   round: number;
 
   @ValidateNested()
-  @IsOptional()
-  Red: CornerDetailsDto;
+  @Type(() => CornerInfoDto)
+  Red: CornerInfoDto;
 
   @ValidateNested()
-  @IsOptional()
-  Blue: CornerDetailsDto;
+  @Type(() => CornerInfoDto)
+  Blue: CornerInfoDto;
 }

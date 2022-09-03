@@ -22,6 +22,7 @@ import { GetMatchDto } from './dto/match/getMatch.dto';
 import { PlaceBetDto } from './dto/bet/placeBet.dto';
 import { BetSelection } from './entities/enums/betSelection.enum';
 import { CompleteMatchDto } from './dto/match/completeMatch.dto';
+import { assert } from 'console';
 
 @Injectable()
 export class BetbotService {
@@ -67,6 +68,14 @@ export class BetbotService {
         activeBets: [],
       },
     });
+    createdUser.updateOne({
+      $set: {
+        userBets: {
+          inactiveBets: [],
+          activeBets: [],
+        },
+      },
+    })
     createdUser.discordGuildIdList.push(createUserDto.discordGuildId);
     createdUser.save();
     return { message: 'CREATED', walletId: createdUser.walletId };
@@ -96,13 +105,11 @@ export class BetbotService {
     });
 
     if (preExistingMatch) {
-      logServer(preExistingMatch._id);
       return { message: 'FOUND', matchId: preExistingMatch._id };
     } else {
-      const createdMatch = new this.matchModel({ ...createMatchDto });
-      createdMatch.save();
+      const createdMatch = new this.matchModel(createMatchDto);
+      await createdMatch.save();
 
-      logServer(createdMatch._id);
       return { message: 'CREATED', matchId: createdMatch._id };
     }
   }
@@ -167,7 +174,7 @@ export class BetbotService {
       }
 
       switch (completeMatchDto.postMatchInfo.result) {
-        case bet.selectedCorner:
+        case bet.selectedCorner.toUpperCase():
           bet.outcome = 'WIN';
           wallet.amount += bet.amountToPayout; // Payout money
           wallet.escrow -= bet.wagerAmount;
@@ -207,7 +214,7 @@ export class BetbotService {
       wallet.save();
     }
 
-    await match.update({
+    await match.updateOne({
       $set: {
         postMatchInfo: completeMatchDto.postMatchInfo,
         isComplete: true,

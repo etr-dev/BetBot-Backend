@@ -77,7 +77,7 @@ export class BetbotService {
       },
     })
     createdUser.discordGuildIdList.push(createUserDto.discordGuildId);
-    createdUser.save();
+    await createdUser.save();
     return { message: 'CREATED', walletId: createdUser.walletId };
   }
 
@@ -209,9 +209,9 @@ export class BetbotService {
       //     },
       //   },
       // );
-      bet.save();
-      user.save();
-      wallet.save();
+      await bet.save();
+      await user.save();
+      await wallet.save();
     }
 
     await match.updateOne({

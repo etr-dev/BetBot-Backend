@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
@@ -18,6 +19,9 @@ export class MatchDto {
 
   @IsString()
   @IsUrl()
+  @ApiProperty({
+    description: 'The link to the event, not the specific match.'
+  })
   link: string;
 
   @IsBoolean()

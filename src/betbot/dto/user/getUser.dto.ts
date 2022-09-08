@@ -1,4 +1,4 @@
-import { PartialType } from "@nestjs/mapped-types";
-import { User } from "@schemas";
+import { PartialType } from '@nestjs/swagger';
+import { User } from '@schemas';
 
-export class GetUserDto extends PartialType(User) { }
+export class GetUserDto extends PartialType(User) {}

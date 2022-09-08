@@ -1,4 +1,5 @@
-import { PickType } from '@nestjs/mapped-types';
+import { PickType } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { IsNumberString, IsString } from 'class-validator';
 import { UserDto } from '../user.dto';
 

@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNumberString, IsString, ValidateNested } from 'class-validator';
 import { UserBetsDto } from './user/nested/userBets.dto';

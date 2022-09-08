@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { config } from 'dotenv';
 import { AppModule } from './app.module';
 import { logServer } from './utils/log';
@@ -13,8 +14,17 @@ async function bootstrap() {
     forbidNonWhitelisted: true,
     transform: true,
   }));
-  await app.listen(3000);
 
-  logServer(`BetBot database is running on port ${process.env.PORT}`)
+  const config = new DocumentBuilder()
+    .setTitle('BetBot')
+    .setDescription('The backend for BetBot')
+    .setVersion('1.0')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
+  await app.listen(process.env.PORT || 3000);
+
+  logServer(`BetBot database is running on port ${process.env.PORT || 3000}`)
 }
 bootstrap();

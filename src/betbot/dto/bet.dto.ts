@@ -1,10 +1,15 @@
-import { IsInt, IsNumber, IsString } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
+import { IsEnum, IsInt, IsNumber, IsString } from "class-validator";
+import { Outcome } from "../entities/enums/outcome.enum";
 
 export class BetDto {
     @IsString()
     matchId: string;
 
     @IsString()
+    @ApiProperty({
+        description: 'The user\'s discord user id'
+    })
     userId: string;
 
     @IsString()
@@ -16,10 +21,18 @@ export class BetDto {
     @IsInt()
     completionDate: number;
 
-    @IsString()
-    outcome: string = undefined;
+    @IsEnum(Outcome)
+    @ApiProperty({
+        description: 'The outcome of the bet. WIN LOSS DRAW or NO_CONTEST',
+        enum: Outcome,
+        enumName: 'Outcome',
+    })
+    outcome: Outcome = undefined;
     
     @IsString()
+    @ApiProperty({
+        description: 'Red or Blue'
+    })
     selectedCorner: string;
 
     @IsString()
